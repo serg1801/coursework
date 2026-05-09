@@ -69,8 +69,8 @@ def test_main_page(
 @patch("src.views.transactions_5_top")
 @patch("src.views.get_card_data")
 def test_main_page_exception_handling(
+    mock_get_card_transactions_5_top,
     mock_get_card_data,
-    mock_transactions_5_top,
     mock_get_stock_price,
     mock_get_currency,
     mock_read_excel_file_period,

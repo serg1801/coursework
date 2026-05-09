@@ -1,12 +1,13 @@
-import json
-
 from datetime import datetime
 
-import requests
+from unittest.mock import Mock, patch
 
+from pandas.testing import assert_frame_equal
+
+import numpy as np
 import pandas as pd
-
 import pytest
+import requests
 
 from src.utils import (
     get_card_data,
@@ -16,11 +17,12 @@ from src.utils import (
     get_time_pr,
     read_excel_file_period,
     transactions_5_top,
+    read_excel_file,
+    read_excel_file_df,
 )
 
-from unittest.mock import Mock, patch
 
-
+# Тесты функции read_excel_file_period
 @patch("pandas.read_excel")
 def test_read_excel_file_period(mock_read_excel, sample_data):
     mock_read_excel.return_value = sample_data
@@ -64,6 +66,7 @@ def test_read_excel_valueerror(mock_read_excel):
         read_excel_file_period(path_excel_, time_period_)
 
 
+# Тесты  функции get_greeting
 @pytest.mark.parametrize(
     "mock_now, expected_greeting",
     [
@@ -198,10 +201,13 @@ def test_get_stock_price_success(mock_get):
     assert result == expected_result
 
 
-@pytest.mark.parametrize("status_code, expected", [
-    (500, "Server Error"),
-    (404, "Client Error: 404"),
-])
+@pytest.mark.parametrize(
+    "status_code, expected",
+    [
+        (500, "Server Error"),
+        (404, "Client Error: 404"),
+    ],
+)
 @patch("requests.get")
 def test_get_stock_price_errors(mock_get, status_code, expected):
     # Настроим mock, чтобы он возвращал указанный статус
@@ -212,3 +218,102 @@ def test_get_stock_price_errors(mock_get, status_code, expected):
 
     # Проверяем, что функция возвращает ожидаемое значение
     assert result == expected
+
+
+# Тесты функции  read_excel_file
+@patch("src.utils.pd.read_excel")
+def test_read_excel_file(mock_read_excel: Mock) -> None:
+    # Создаем пример данных, которые будет возвращать мок
+    mock_df = pd.DataFrame(
+        [
+            {
+                "Дата операции": "19.05.2019 14:51:40",
+                "Дата платежа": "21.05.2019",
+                "Номер карты": "*7197",
+                "Статус": "OK",
+                "Сумма операции": -34.0,
+                "Валюта операции": "RUB",
+                "Сумма платежа": -34.0,
+                "Валюта платежа": "RUB",
+                "Кэшбэк": np.nan,
+                "Категория": "Супермаркеты",
+                "MCC": 5462.0,
+                "Описание": "Rumyanyj Khleb Km",
+                "Бонусы(включая кэшбэк)": 0,
+                "Округление на инвесткопилку": 0,
+                "Сумма операции с округлением": 34.0,
+            }
+        ]
+    )
+
+    # Заменяем `nan` на `None`
+    mock_df = mock_df.where(pd.notnull(mock_df), None)
+    mock_read_excel.return_value = mock_df
+
+    # Формируем expected_result
+    expected_result = mock_df.to_dict(orient="records")
+
+    # Проверяем каждую запись
+    for record in expected_result:
+        for key, value in record.items():
+            if isinstance(value, float) and np.isnan(value):
+                record[key] = None
+
+    # Запускаем тест
+    result = read_excel_file("fake_path.xlsx")
+
+    for record in result:
+        for key, value in record.items():
+            if isinstance(value, float) and np.isnan(value):
+                record[key] = None
+
+    assert result == expected_result
+
+
+@patch("src.utils.pd.read_excel")
+def test_read_excel_value_error(mock_read_excel: Mock) -> None:
+    mock_read_excel.side_effect = ValueError("Ошибка при чтении файла Excel")
+    with pytest.raises(ValueError, match="Ошибка при чтении файла Excel"):
+        read_excel_file("non_existent_file.xlsx")
+
+
+# Тесты функции  read_excel_file_df
+@patch("src.utils.pd.read_excel")
+def test_read_excel_file_df(mock_read_excel: Mock) -> None:
+    # Создаем пример данных, которые будет возвращать мок
+    mock_df = pd.DataFrame(
+        [
+            {
+                "Дата операции": "19.05.2019 14:51:40",
+                "Дата платежа": "21.05.2019",
+                "Номер карты": "*7197",
+                "Статус": "OK",
+                "Сумма операции": -34.0,
+                "Валюта операции": "RUB",
+                "Сумма платежа": -34.0,
+                "Валюта платежа": "RUB",
+                "Кэшбэк": None,
+                "Категория": "Супермаркеты",
+                "MCC": 5462.0,
+                "Описание": "Rumyanyj Khleb Km",
+                "Бонусы(включая кэшбэк)": 0,
+                "Округление на инвесткопилку": 0,
+                "Сумма операции с округлением": 34.0,
+            }
+        ]
+    )
+
+    mock_read_excel.return_value = mock_df
+
+    # Запускаем тест
+    result = read_excel_file_df("fake_path.xlsx")
+
+    # Сравниваем DataFrame напрямую
+    assert_frame_equal(result, mock_df)
+
+
+@patch("src.utils.pd.read_excel")
+def test_read_excel_df_value_error(mock_read_excel_df: Mock) -> None:
+    mock_read_excel_df.side_effect = ValueError("Ошибка при чтении файла Excel")
+    with pytest.raises(ValueError, match="Ошибка при чтении файла Excel"):
+        read_excel_file("non_existent_file.xlsx")

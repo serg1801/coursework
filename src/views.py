@@ -42,7 +42,6 @@ def main_page(date_string: str) -> str:
         views_logger.info("успешно сформирован ответ")
         return json_data
 
-
     except Exception as e:
 
         views_logger.error(f"Произошла ошибка формирования JSON: {e}")

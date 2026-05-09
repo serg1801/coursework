@@ -4,13 +4,14 @@ import json
 
 from datetime import datetime
 
-from typing import Any
+from typing import Any, Hashable
 
 import pandas as pd
 
 import requests
 
 from dotenv import load_dotenv
+from pandas import DataFrame
 
 from src.logging_config import setup_logging
 
@@ -38,8 +39,8 @@ def read_excel_file_period(path_excel_, time_period_):
         srt_df_exl_lst = srt_df_exl.to_dict(orient="records")
         utils_logger.info("Список операций успешно создан.")
     except ValueError as e:
-         utils_logger.error(f"Ошибка при чтении файла Excel: {e}")
-         raise ValueError(f"Ошибка при чтении файла Excel: {e}")
+        utils_logger.error(f"Ошибка при чтении файла Excel: {e}")
+        raise ValueError(f"Ошибка при чтении файла Excel: {e}")
     return srt_df_exl_lst
 
 
@@ -84,7 +85,6 @@ def get_card_data(transaction_lst):
     utils_logger.info("Начало обработки транзакций.")
     # Создаем DataFrame из списка транзакций
     df = pd.DataFrame(transaction_lst)
-    # print(df.columns)
     # Убираем записи с некорректными номерами карт
     df = df[df["Номер карты"].notna()]
 
@@ -232,7 +232,6 @@ def get_stock_price() -> list[dict] | str:
         utils_logger.info("Цены акций успешно получены и обработаны.")
         return price_stock
 
-
     except requests.exceptions.HTTPError as e:
 
         utils_logger.error("Ошибка HTTP при получении цен акций.", exc_info=True)
@@ -242,3 +241,32 @@ def get_stock_price() -> list[dict] | str:
 
         return f"Client Error: {response.status_code}"
 
+
+def read_excel_file(path_excel: str) -> list[dict[Hashable, Any]]:
+    """
+     Функция для считывания финансовых операций из Excel. Принимает путь к файлу Excel, в качестве аргумента,
+    и выдает список словарей с транзакциями.
+    """
+    utils_logger.info("Начало чтения файла Excel.")
+    try:
+        df_exl = pd.read_excel(path_excel)
+        transactions_exl_list = df_exl.to_dict(orient="records")
+        utils_logger.info("Список транзакций успешно создан.")
+    except ValueError as e:
+        utils_logger.error(f"Ошибка при чтении файла Excel: {e}")
+        raise ValueError(f"Ошибка при чтении файла Excel: {e}")
+    return transactions_exl_list
+
+
+def read_excel_file_df(path_excel: str) -> DataFrame:
+    """
+    Функция для считывания финансовых операций из Excel. Принимает путь к файлу Excel, выдает DataFrame
+    """
+    utils_logger.info("Начало чтения файла Excel.")
+    try:
+        df_exl_ = pd.read_excel(path_excel)
+        utils_logger.info("DataFrame успешно создан.")
+    except ValueError as e:
+        utils_logger.error(f"Ошибка при чтении файла Excel: {e}")
+        raise ValueError(f"Ошибка при чтении файла Excel: {e}")
+    return df_exl_
